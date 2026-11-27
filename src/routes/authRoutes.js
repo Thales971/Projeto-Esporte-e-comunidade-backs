@@ -11,8 +11,7 @@ const registerSchema = z.object({
   email: z.string().email(),
   senha: z.string().min(6),
   telefone: z.string().optional(),
-  papel: z.enum(['ORGANIZADOR', 'PARTICIPANTE']).optional(),
-});
+}).strict();
 const loginSchema = z.object({
   email: z.string().email(),
   senha: z.string(),

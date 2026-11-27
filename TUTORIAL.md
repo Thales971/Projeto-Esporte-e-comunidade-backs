@@ -83,7 +83,6 @@ Após o seed, você terá estes usuários de teste:
 
 | Email | Senha | Papel |
 |-------|-------|-------|
-| admin@esporte.com | senha123 | ADMIN |
 | organizador@esporte.com | senha123 | ORGANIZADOR |
 | joao@esporte.com | senha123 | PARTICIPANTE |
 

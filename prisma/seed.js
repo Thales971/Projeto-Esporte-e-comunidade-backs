@@ -25,9 +25,7 @@ async function main() {
 
   // Usuários
   const senhaHash = await bcrypt.hash('senha123', salt);
-  const admin = await prisma.usuario.create({
-    data: { nome: 'Administrador', email: 'admin@esporte.com', senha: senhaHash, papel: 'ADMIN', telefone: '11999999999' },
-  });
+
   const organizador = await prisma.usuario.create({
     data: { nome: 'Organizador Eventos', email: 'organizador@esporte.com', senha: senhaHash, papel: 'ORGANIZADOR', telefone: '11988888888' },
   });
@@ -75,7 +73,6 @@ async function main() {
 
   console.log('Seed concluído com sucesso!');
   console.log('Usuários de demonstração:');
-  console.log('  Admin: admin@esporte.com / senha123');
   console.log('  Organizador: organizador@esporte.com / senha123');
   console.log('  Participante: joao@esporte.com / senha123');
 }
