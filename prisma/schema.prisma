@@ -92,6 +92,7 @@ model Evento {
   organizador     Usuario     @relation(fields: [organizadorId], references: [id])
   inscricoes      Inscricao[]
   avaliacoes      Avaliacao[]
+  listaEspera     ListaEspera[]
 
   @@map("eventos")
 }

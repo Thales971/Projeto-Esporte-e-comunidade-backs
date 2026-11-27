@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import 'express-async-errors';
+
 import 'dotenv/config';
 
 import authRoutes from './routes/authRoutes.js';
