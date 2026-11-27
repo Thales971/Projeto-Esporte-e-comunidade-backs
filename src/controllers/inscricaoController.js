@@ -6,132 +6,72 @@ const inscricaoSchema = z.object({
 });
 
 
-
 export const criar = async (req, res) => {
   try {
     const { eventoId } = inscricaoSchema.parse(req.body);
     const usuarioId = req.usuario.id;
 
-    const resultado = await prisma.$transaction(async (tx) => {
-      const evento = await tx.evento.findUnique({
-        where: { id: eventoId },
+    const evento = await prisma.evento.findUnique({
+      where: { id: eventoId },
+    });
+
+    if (!evento) {
+      return res.status(404).json({ error: 'Evento não encontrado' });
+    }
+
+    if (evento.status !== 'ATIVO') {
+      return res.status(400).json({
+        error: 'Evento não está ativo',
       });
+    }
 
-      if (!evento) {
-        return {
-          status: 404,
-          body: { error: 'Evento não encontrado' },
-        };
-      }
+    if (new Date(evento.dataHora) <= new Date()) {
+      return res.status(400).json({
+        error: 'Evento já ocorreu',
+      });
+    }
 
-      if (evento.status !== 'ATIVO') {
-        return {
-          status: 400,
-          body: { error: 'Evento não está ativo' },
-        };
-      }
-
-      if (new Date(evento.dataHora) <= new Date()) {
-        return {
-          status: 400,
-          body: { error: 'Evento já ocorreu' },
-        };
-      }
-
-      const existente = await tx.inscricao.findUnique({
-        where: {
-          eventoId_usuarioId: { eventoId, usuarioId },
+    const existente = await prisma.inscricao.findUnique({
+      where: {
+        eventoId_usuarioId: {
+          eventoId,
+          usuarioId,
         },
+      },
+    });
+
+    if (existente) {
+      return res.status(409).json({
+        error: 'Você já está inscrito neste evento',
       });
+    }
 
-      if (existente) {
-        return {
-          status: 409,
-          body: { error: 'Você já possui uma inscrição neste evento' },
-        };
-      }
-
-      const existenteLista = await tx.listaEspera.findUnique({
+    if (evento.vagasDisponiveis <= 0) {
+      const existenteLista = await prisma.listaEspera.findUnique({
         where: {
-          eventoId_usuarioId: { eventoId, usuarioId },
+          eventoId_usuarioId: {
+            eventoId,
+            usuarioId,
+          },
         },
       });
 
       if (existenteLista) {
-        return {
-          status: 409,
-          body: { error: 'Você já está na lista de espera deste evento' },
-        };
-      }
-
-      const vagaReservada = await tx.evento.updateMany({
-        where: {
-          id: eventoId,
-          status: 'ATIVO',
-          dataHora: { gt: new Date() },
-          vagasDisponiveis: { gt: 0 },
-        },
-        data: {
-          vagasDisponiveis: { decrement: 1 },
-        },
-      });
-
-      if (vagaReservada.count === 1) {
-        const inscricao = await tx.inscricao.create({
-          data: {
-            eventoId,
-            usuarioId,
-          },
-          include: {
-            evento: {
-              select: {
-                id: true,
-                titulo: true,
-                dataHora: true,
-              },
-            },
-          },
+        return res.status(409).json({
+          error: 'Você já está na lista de espera deste evento',
         });
-
-        return {
-          status: 201,
-          body: {
-            message: 'Inscrição confirmada',
-            data: inscricao,
-          },
-        };
       }
 
-      const eventoAtual = await tx.evento.findUnique({
-        where: { id: eventoId },
-      });
-
-      if (!eventoAtual) {
-        return {
-          status: 404,
-          body: { error: 'Evento não encontrado' },
-        };
-      }
-
-      if (eventoAtual.status !== 'ATIVO') {
-        return {
-          status: 400,
-          body: { error: 'Evento não está ativo' },
-        };
-      }
-
-      if (new Date(eventoAtual.dataHora) <= new Date()) {
-        return {
-          status: 400,
-          body: { error: 'Evento já ocorreu' },
-        };
-      }
-
-      const posicao = await tx.listaEspera.count({
+      const ultimaPosicao = await tx.listaEspera.aggregate({
         where: { eventoId },
+        _max: {
+          posicao: true,
+        },
       });
 
-      await tx.listaEspera.create({
+      const posicao = (ultimaPosicao._max.posicao ?? 0) + 1;
+
+      await prisma.listaEspera.create({
         data: {
           eventoId,
           usuarioId,
@@ -139,15 +79,40 @@ export const criar = async (req, res) => {
         },
       });
 
-      return {
-        status: 202,
-        body: {
-          message: 'Evento lotado. Você foi adicionado à lista de espera',
+      return res.status(202).json({
+        message: 'Evento lotado. Você foi adicionado à lista de espera',
+      });
+    }
+
+    const inscricao = await prisma.inscricao.create({
+      data: {
+        eventoId,
+        usuarioId,
+      },
+      include: {
+        evento: {
+          select: {
+            id: true,
+            titulo: true,
+            dataHora: true,
+          },
         },
-      };
+      },
     });
 
-    return res.status(resultado.status).json(resultado.body);
+    await prisma.evento.update({
+      where: { id: eventoId },
+      data: {
+        vagasDisponiveis: {
+          decrement: 1,
+        },
+      },
+    });
+
+    return res.status(201).json({
+      message: 'Inscrição confirmada',
+      data: inscricao,
+    });
 
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -170,7 +135,6 @@ export const criar = async (req, res) => {
     });
   }
 };
-
 
 
 export const listarMinhas = async (req, res) => {
@@ -262,6 +226,20 @@ export const cancelar = async (req, res) => {
           where: { id: proximo.id },
         });
 
+        await tx.listaEspera.updateMany({
+          where: {
+            eventoId: inscricao.eventoId,
+            posicao: {
+              gt: proximo.posicao,
+            },
+          },
+          data: {
+            posicao: {
+              decrement: 1,
+            },
+          },
+        });
+
         return {
           status: 200,
           body: {
@@ -299,24 +277,78 @@ export const cancelar = async (req, res) => {
 };
 
 
+
 export const checkin = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        error: 'ID de inscrição inválido',
+      });
+    }
+
     const inscricao = await prisma.inscricao.findUnique({
-      where: { id: Number(id) },
+      where: { id },
       include: { evento: true },
     });
-    if (!inscricao) return res.status(404).json({ error: 'Inscrição não encontrada' });
-    if (inscricao.evento.organizadorId !== req.usuario.id && req.usuario.papel !== 'ADMIN') {
-      return res.status(403).json({ error: 'Apenas o organizador pode fazer check-in' });
+
+    if (!inscricao) {
+      return res.status(404).json({
+        error: 'Inscrição não encontrada',
+      });
     }
-    const atualizada = await prisma.inscricao.update({
-      where: { id: Number(id) },
-      data: { status: 'PRESENTE', checkinEm: new Date() },
-      include: { usuario: { select: { id: true, nome: true } } },
+
+    if (
+      inscricao.evento.organizadorId !== req.usuario.id &&
+      req.usuario.papel !== 'ADMIN'
+    ) {
+      return res.status(403).json({
+        error: 'Apenas o organizador pode fazer check-in',
+      });
+    }
+
+    if (inscricao.status !== 'CONFIRMADO') {
+      return res.status(400).json({
+        error: 'Esta inscrição não está confirmada ou já possui check-in',
+      });
+    }
+
+    const resultado = await prisma.inscricao.updateMany({
+      where: {
+        id,
+        status: 'CONFIRMADO',
+      },
+      data: {
+        status: 'PRESENTE',
+        checkinEm: new Date(),
+      },
     });
-    return res.json({ message: 'Check-in realizado', data: atualizada });
+
+    if (resultado.count === 0) {
+      return res.status(409).json({
+        error: 'O check-in já foi realizado ou a inscrição foi alterada',
+      });
+    }
+
+    const atualizada = await prisma.inscricao.findUnique({
+      where: { id },
+      include: {
+        usuario: {
+          select: { id: true, nome: true },
+        },
+      },
+    });
+
+    return res.json({
+      message: 'Check-in realizado com sucesso',
+      data: atualizada,
+    });
   } catch (error) {
-    return res.status(500).json({ error: 'Erro ao fazer check-in' });
+    console.error('Erro ao fazer check-in:', error);
+
+    return res.status(500).json({
+      error: 'Erro ao fazer check-in',
+    });
   }
 };

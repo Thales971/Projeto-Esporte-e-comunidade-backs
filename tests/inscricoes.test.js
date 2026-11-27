@@ -1,6 +1,6 @@
 import request from 'supertest';
 import app from '../src/app.js';
-import { limparBanco, criarUsuario, criarCategoria, criarLocal, criarEvento } from './setup.js';
+import { limparBanco, criarUsuario, criarOrganizador, criarCategoria, criarLocal, criarEvento } from './setup.js';
 
 beforeEach(async () => { await limparBanco(); });
 
@@ -109,6 +109,40 @@ it('deve promover a próxima pessoa da lista de espera quando uma inscrição fo
   expect(minhasInscricoes.body.data).toHaveLength(1);
   expect(minhasInscricoes.body.data[0].status).toBe('CONFIRMADO');
 });
+
+
+it('deve realizar check-in e impedir sua repetição', async () => {
+  const cat = await criarCategoria();
+  const loc = await criarLocal();
+  const org = await criarOrganizador();
+  const evento = await criarEvento(cat, loc, org);
+
+  await criarUsuario();
+
+  const tokenParticipante = await fazerLogin(app, 'usuario@teste.com');
+  const tokenOrganizador = await fazerLogin(app, 'organizador@teste.com');
+
+  const inscricao = await request(app)
+    .post('/api/inscricoes')
+    .set('Authorization', `Bearer ${tokenParticipante}`)
+    .send({ eventoId: evento.id });
+
+  expect(inscricao.status).toBe(201);
+
+  const checkin = await request(app)
+    .patch(`/api/inscricoes/${inscricao.body.data.id}/checkin`)
+    .set('Authorization', `Bearer ${tokenOrganizador}`);
+
+  expect(checkin.status).toBe(200);
+  expect(checkin.body.data.status).toBe('PRESENTE');
+
+  const checkinRepetido = await request(app)
+    .patch(`/api/inscricoes/${inscricao.body.data.id}/checkin`)
+    .set('Authorization', `Bearer ${tokenOrganizador}`);
+
+  expect(checkinRepetido.status).toBe(400);
+});
+
 
 });
 

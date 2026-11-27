@@ -87,14 +87,28 @@ export const atualizar = async (req, res) => {
     const data = eventoSchema.parse(req.body);
     const dataHora = new Date(data.dataHora);
 
-if (dataHora <= new Date()) {
-  return res.status(400).json({
-    error: 'Data do evento deve ser futura',
-  });
-}
+    if (dataHora <= new Date()) {
+      return res.status(400).json({
+        error: 'Data do evento deve ser futura',
+      });
+    }
+
+    const vagasOcupadas = evento.vagasTotal - evento.vagasDisponiveis;
+
+    if (data.vagasTotal < vagasOcupadas) {
+      return res.status(400).json({
+        error: 'O total de vagas não pode ser menor que a quantidade já ocupada',
+      });
+    }
+
+    const vagasDisponiveis = data.vagasTotal - vagasOcupadas;
     const eventoAtualizado = await prisma.evento.update({
       where: { id: Number(req.params.id) },
-      data: { ...data, dataHora },
+      data: {
+        ...data,
+        dataHora,
+        vagasDisponiveis,
+      },
       include: { categoria: true, local: true },
     });
     return res.json({ message: 'Evento atualizado', data: eventoAtualizado });
