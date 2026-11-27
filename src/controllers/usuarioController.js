@@ -5,8 +5,7 @@ const usuarioSchema = z.object({
   nome: z.string().min(3).optional(),
   email: z.string().email().optional(),
   telefone: z.string().optional(),
-  papel: z.enum(['ORGANIZADOR', 'PARTICIPANTE', 'ADMIN']).optional(),
-});
+}).strict();  
 
 export const listar = async (req, res) => {
   const { papel, q, page = 1, limit = 10 } = req.query;
@@ -53,8 +52,31 @@ export const atualizar = async (req, res) => {
       select: { id: true, nome: true, email: true, papel: true, telefone: true },
     });
     return res.json({ message: 'Usuário atualizado', data: usuario });
-  } catch (error) {
-    return res.status(400).json({ error: 'Dados inválidos', detalhes: error.errors });
+    } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: 'Dados inválidos',
+        detalhes: error.issues,
+      });
+    }
+
+    if (error.code === 'P2002') {
+      return res.status(409).json({
+        error: 'E-mail já cadastrado',
+      });
+    }
+
+    if (error.code === 'P2025') {
+      return res.status(404).json({
+        error: 'Usuário não encontrado',
+      });
+    }
+
+    console.error('Erro ao atualizar usuário:', error);
+
+    return res.status(500).json({
+      error: 'Erro interno ao atualizar usuário',
+    });
   }
 };
 
