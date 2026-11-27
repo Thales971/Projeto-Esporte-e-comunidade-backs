@@ -10,8 +10,8 @@ describe('Auth', () => {
       nome: 'Teste', email: 'teste@teste.com', senha: 'senha123', papel: 'PARTICIPANTE',
     });
     expect(res.status).toBe(201);
-    expect(res.body.success).toBe(true);
     expect(res.body.data.id).toBeDefined();
+    expect(res.body.data.email).toBe('teste@teste.com');
   });
 
   it('não deve cadastrar email duplicado', async () => {
