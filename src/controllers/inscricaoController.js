@@ -1,0 +1,117 @@
+import { prisma } from '../lib/services/prismaClient.js';
+import { z } from 'zod';
+
+const inscricaoSchema = z.object({
+  eventoId: z.number().int(),
+});
+
+export const criar = async (req, res) => {
+  try {
+    const { eventoId } = inscricaoSchema.parse(req.body);
+    const usuarioId = req.usuario.id;
+
+    const evento = await prisma.evento.findUnique({ where: { id: eventoId } });
+    if (!evento) return res.status(404).json({ error: 'Evento não encontrado' });
+    if (evento.status !== 'ATIVO') return res.status(400).json({ error: 'Evento não está ativo' });
+    if (new Date(evento.dataHora) <= new Date()) return res.status(400).json({ error: 'Evento já ocorreu' });
+    if (evento.vagasDisponiveis <= 0) {
+      await prisma.listaEspera.create({
+        data: { eventoId, usuarioId, posicao: await prisma.listaEspera.count({ where: { eventoId } }) + 1 },
+      });
+      return res.status(202).json({ message: 'Evento lotado. Você foi adicionado à lista de espera' });
+    }
+
+    const existente = await prisma.inscricao.findUnique({
+      where: { eventoId_usuarioId: { eventoId, usuarioId } },
+    });
+    if (existente) return res.status(409).json({ error: 'Você já está inscrito neste evento' });
+
+    const inscricao = await prisma.inscricao.create({
+      data: { eventoId, usuarioId },
+      include: { evento: { select: { id: true, titulo: true, dataHora: true } } },
+    });
+    await prisma.evento.update({
+      where: { id: eventoId },
+      data: { vagasDisponiveis: evento.vagasDisponiveis - 1 },
+    });
+    return res.status(201).json({ message: 'Inscrição confirmada', data: inscricao });
+  } catch (error) {
+    if (error.errors) return res.status(400).json({ error: 'Dados inválidos', detalhes: error.errors });
+    return res.status(500).json({ error: 'Erro ao inscrever' });
+  }
+};
+
+export const listarMinhas = async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
+  const [inscricoes, total] = await Promise.all([
+    prisma.inscricao.findMany({
+      where: { usuarioId: req.usuario.id },
+      skip: (Number(page) - 1) * Number(limit),
+      take: Number(limit),
+      include: { evento: { include: { categoria: true, local: true } } },
+      orderBy: { dataInscricao: 'desc' },
+    }),
+    prisma.inscricao.count({ where: { usuarioId: req.usuario.id } }),
+  ]);
+  return res.json({ data: inscricoes, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) });
+};
+
+export const listarPorEvento = async (req, res) => {
+  const { id } = req.params;
+  const evento = await prisma.evento.findUnique({ where: { id: Number(id) } });
+  if (!evento) return res.status(404).json({ error: 'Evento não encontrado' });
+  if (evento.organizadorId !== req.usuario.id && req.usuario.papel !== 'ADMIN') {
+    return res.status(403).json({ error: 'Acesso negado' });
+  }
+  const inscricoes = await prisma.inscricao.findMany({
+    where: { eventoId: Number(id) },
+    include: { usuario: { select: { id: true, nome: true, email: true } } },
+  });
+  return res.json({ data: inscricoes });
+};
+
+export const cancelar = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const inscricao = await prisma.inscricao.findUnique({ where: { id: Number(id) } });
+    if (!inscricao) return res.status(404).json({ error: 'Inscrição não encontrada' });
+    if (inscricao.usuarioId !== req.usuario.id && req.usuario.papel !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    if (inscricao.status === 'CANCELADO') return res.status(400).json({ error: 'Inscrição já cancelada' });
+
+    await prisma.inscricao.update({ where: { id: Number(id) }, data: { status: 'CANCELADO' } });
+    const evento = await prisma.evento.findUnique({ where: { id: inscricao.eventoId } });
+    if (evento) {
+      await prisma.evento.update({
+        where: { id: inscricao.eventoId },
+        data: { vagasDisponiveis: evento.vagasDisponiveis + 1 },
+      });
+    }
+    return res.json({ message: 'Inscrição cancelada. Vaga liberada.' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Erro ao cancelar inscrição' });
+  }
+};
+
+export const checkin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const inscricao = await prisma.inscricao.findUnique({
+      where: { id: Number(id) },
+      include: { evento: true },
+    });
+    if (!inscricao) return res.status(404).json({ error: 'Inscrição não encontrada' });
+    if (inscricao.evento.organizadorId !== req.usuario.id && req.usuario.papel !== 'ADMIN') {
+      return res.status(403).json({ error: 'Apenas o organizador pode fazer check-in' });
+    }
+    const atualizada = await prisma.inscricao.update({
+      where: { id: Number(id) },
+      data: { status: 'PRESENTE', checkinEm: new Date() },
+      include: { usuario: { select: { id: true, nome: true } } },
+    });
+    return res.json({ message: 'Check-in realizado', data: atualizada });
+  } catch (error) {
+    return res.status(500).json({ error: 'Erro ao fazer check-in' });
+  }
+};

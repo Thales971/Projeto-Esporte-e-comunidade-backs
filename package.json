@@ -1,0 +1,44 @@
+{
+  "name": "esporte-comunidade-backend",
+  "version": "1.0.0",
+  "description": "Back-end completo para plataforma de Esporte e Comunidade - SENAI Valinhos Desafio Tech 2026",
+  "main": "src/server.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "prisma db seed",
+    "prisma:studio": "prisma studio",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --watchAll",
+    "test:ci": "node --experimental-vm-modules node_modules/.bin/jest --ci"
+  },
+  "keywords": ["esporte", "comunidade", "eventos", "inscricoes", "senai", "desafio-tech"],
+  "author": "Equipe Esporte e Comunidade",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.3.0",
+    "@prisma/client": "^7.8.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-async-errors": "^5.1.1",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.1",
+    "pg": "^8.20.0",
+    "sharp": "^0.34.5",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.14",
+    "prisma": "^7.8.0",
+    "supertest": "^7.0.0"
+  }
+}
