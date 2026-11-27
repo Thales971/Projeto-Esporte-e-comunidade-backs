@@ -19,6 +19,11 @@
 | T15 | Filtrar eventos por categoria | 200, apenas eventos da categoria | Planejado |
 | T16 | Enviar campos obrigatórios vazios | 400, erro de validação (Zod) | Planejado |
 | T17 | Persistência: verificar inscrição no banco | 200, dados consistentes | Planejado |
+| T18 | Consultar avaliação existente e ID inexistente | 200 com dados; 404 para ID inexistente | Planejado |
+| T19 | Autor atualizar avaliação com dados válidos | 200, nota e comentário persistidos | Planejado |
+| T20 | Outro participante editar ou excluir avaliação | 403, avaliação permanece inalterada | Planejado |
+| T21 | Autor excluir avaliação | 200, avaliação removida da consulta e da média | Planejado |
+| T22 | Atualizar avaliação com nota fora de 1 a 5 | 400, avaliação permanece inalterada | Planejado |
 
 ## Fluxos de Negócio Testados
 

@@ -10,13 +10,13 @@ export async function limparBanco() {
   await prisma.usuario.deleteMany();
 }
 
-export async function criarUsuario(admin = false) {
+export async function criarUsuario(admin = false, email = admin ? 'admin@teste.com' : 'usuario@teste.com') {
   const bcrypt = await import('bcryptjs');
   const hash = await bcrypt.default.hash('senha123', 10);
   return prisma.usuario.create({
     data: {
       nome: admin ? 'Admin Teste' : 'Usuário Teste',
-      email: admin ? 'admin@teste.com' : 'usuario@teste.com',
+      email,
       senha: hash,
       papel: admin ? 'ADMIN' : 'PARTICIPANTE',
     },

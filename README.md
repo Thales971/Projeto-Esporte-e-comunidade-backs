@@ -132,6 +132,9 @@ npm run test:ci
 ### Avaliações
 - `POST /api/avaliacoes` - Avaliar evento (apenas se presente)
 - `GET /api/avaliacoes/evento/:id` - Avaliações do evento
+- `GET /api/avaliacoes/:id` - Consultar avaliação
+- `PUT /api/avaliacoes/:id` - Atualizar avaliação (autor/admin)
+- `DELETE /api/avaliacoes/:id` - Excluir avaliação (autor/admin)
 
 ### Dashboard
 - `GET /api/dashboard/estatisticas` - Estatísticas gerais
@@ -159,6 +162,7 @@ npm run test:ci
 
 ## 📄 Documentação Adicional
 
+- `docs/CRUD_SPECIFICATION.md` - ERS do CRUD, critérios de aceite, regras de negócio e rastreabilidade
 - `docs/API_DOCUMENTATION.md` - Detalhes da API para Insomnia/Postman
 - `docs/TEST_CASES.md` - Matriz de testes (10+ casos)
 

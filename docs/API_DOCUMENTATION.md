@@ -44,6 +44,19 @@ Confirma presença (apenas organizador do evento).
 Avalia evento (apenas se status PRESENTE).
 Body: `{ eventoId, nota (1-5), comentario? }`
 
+### GET /avaliacoes/evento/:id
+Lista avaliações do evento e retorna média e quantidade.
+
+### GET /avaliacoes/:id
+Retorna uma avaliação pelo ID.
+
+### PUT /avaliacoes/:id
+Atualiza nota e comentário (somente autor ou administrador).
+Body: `{ nota (1-5), comentario? }`
+
+### DELETE /avaliacoes/:id
+Exclui avaliação (somente autor ou administrador).
+
 ### GET /dashboard/estatisticas
 Retorna estatísticas gerais do sistema.
 
