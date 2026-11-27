@@ -1,119 +1,171 @@
+
 import { prisma } from '../lib/services/prismaClient.js';
 import { z } from 'zod';
 
+// Validação dos dados do usuário
 const usuarioSchema = z.object({
   nome: z.string().min(3).optional(),
   email: z.string().email().optional(),
   telefone: z.string().optional(),
-}).strict();  
+}).strict().refine(
+  (data) => Object.keys(data).length > 0,
+  { message: 'Informe pelo menos um campo para atualizar' }
+);
 
-export const listar = async (req, res) => {
-  const { papel, q, page = 1, limit = 10 } = req.query;
-  const where = {};
-  if (papel) where.papel = papel;
-  if (q) {
-    where.OR = [
-      { nome: { contains: q, mode: 'insensitive' } },
-      { email: { contains: q, mode: 'insensitive' } },
-    ];
-  }
-  const [usuarios, total] = await Promise.all([
-    prisma.usuario.findMany({
-      where,
-      skip: (Number(page) - 1) * Number(limit),
-      take: Number(limit),
-      select: { id: true, nome: true, email: true, papel: true, telefone: true, fotoUrl: true, criadoEm: true },
-    }),
-    prisma.usuario.count({ where }),
-  ]);
-  return res.json({ data: usuarios, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) });
+// Validação dos filtros e da paginação
+const filtrosSchema = z.object({
+  papel: z.enum(['ORGANIZADOR', 'PARTICIPANTE']).optional(),
+  q: z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+}).strict();
+
+// Validação de IDs
+const obterId = (valor) => {
+  const id = Number(valor);
+
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
 };
 
-
-export const buscarPorId = async (req, res) => {
-  const { id } = req.params;
-  const usuarioId = Number(id);
-
-  if (req.usuario.id !== usuarioId && req.usuario.papel !== 'ORGANIZADOR') {
-    return res.status(403).json({
-      error: 'Acesso negado',
+// Tratamento padronizado dos erros
+const tratarErro = (res, error, operacao) => {
+  if (error instanceof z.ZodError) {
+    return res.status(400).json({
+      error: 'Dados inválidos',
+      detalhes: error.issues,
     });
   }
 
-  const usuario = await prisma.usuario.findUnique({
-    where: { id: usuarioId },
-    select: {
-      id: true,
-      nome: true,
-      email: true,
-      papel: true,
-      telefone: true,
-      fotoUrl: true,
-      criadoEm: true,
-    },
-  });
-
-  if (!usuario) {
+  if (error.code === 'P2025') {
     return res.status(404).json({
       error: 'Usuário não encontrado',
     });
   }
 
-  return res.json({ data: usuario });
+  if (error.code === 'P2002') {
+    return res.status(409).json({
+      error: 'E-mail já cadastrado',
+    });
+  }
+
+  if (error.code === 'P2003' || error.code === 'P2014') {
+    return res.status(409).json({
+      error: 'Não é possível excluir este usuário porque existem registros vinculados à conta',
+    });
+  }
+
+  console.error(`Erro ao ${operacao} usuário:`, error);
+
+  return res.status(500).json({
+    error: `Erro interno ao ${operacao} usuário`,
+  });
 };
 
-
-export const atualizar = async (req, res) => {
+// Listar usuários
+export const listar = async (req, res) => {
   try {
-    const { id } = req.params;
-    const data = usuarioSchema.parse(req.body);
-    if (req.usuario.id !== Number(id) && req.usuario.papel !== 'ORGANIZADOR') {
-      return res.status(403).json({ error: 'Acesso negado' });
+    const filtros = filtrosSchema.parse(req.query);
+
+    const { papel, q, page, limit } = filtros;
+    const where = {};
+
+    if (papel) {
+      where.papel = papel;
     }
-    const usuario = await prisma.usuario.update({
-      where: { id: Number(id) },
-      data,
-      select: { id: true, nome: true, email: true, papel: true, telefone: true },
+
+    if (q) {
+      where.OR = [
+        { nome: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const [usuarios, total] = await Promise.all([
+      prisma.usuario.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          nome: true,
+          email: true,
+          papel: true,
+          telefone: true,
+          fotoUrl: true,
+          criadoEm: true,
+        },
+      }),
+      prisma.usuario.count({ where }),
+    ]);
+
+    return res.json({
+      data: usuarios,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     });
-    return res.json({ message: 'Usuário atualizado', data: usuario });
-    } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        error: 'Dados inválidos',
-        detalhes: error.issues,
-      });
-    }
+  } catch (error) {
+    return tratarErro(res, error, 'listar');
+  }
+};
 
-    if (error.code === 'P2002') {
-      return res.status(409).json({
-        error: 'E-mail já cadastrado',
-      });
-    }
+// Buscar usuário por ID
+export const buscarPorId = async (req, res) => {
+  const id = obterId(req.params.id);
 
-    if (error.code === 'P2025') {
+  if (!id) {
+    return res.status(400).json({
+      error: 'ID de usuário inválido',
+    });
+  }
+
+  if (req.usuario.id !== id && req.usuario.papel !== 'ORGANIZADOR') {
+    return res.status(403).json({
+      error: 'Acesso negado',
+    });
+  }
+
+  try {
+    const usuario = await prisma.usuario.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        papel: true,
+        telefone: true,
+        fotoUrl: true,
+        criadoEm: true,
+      },
+    });
+
+    if (!usuario) {
       return res.status(404).json({
         error: 'Usuário não encontrado',
       });
     }
 
-    console.error('Erro ao atualizar usuário:', error);
-
-    return res.status(500).json({
-      error: 'Erro interno ao atualizar usuário',
+    return res.json({
+      data: usuario,
     });
+  } catch (error) {
+    return tratarErro(res, error, 'buscar');
   }
 };
 
+// Atualizar usuário
+export const atualizar = async (req, res) => {
+  const id = obterId(req.params.id);
 
-export const deletar = async (req, res) => {
+  if (!id) {
+    return res.status(400).json({
+      error: 'ID de usuário inválido',
+    });
+  }
+
   try {
-    const id = Number(req.params.id);
-
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({
-        error: 'ID de usuário inválido',
-      });
-    }
+    const data = usuarioSchema.parse(req.body);
 
     if (req.usuario.id !== id && req.usuario.papel !== 'ORGANIZADOR') {
       return res.status(403).json({
@@ -121,6 +173,44 @@ export const deletar = async (req, res) => {
       });
     }
 
+    const usuario = await prisma.usuario.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        papel: true,
+        telefone: true,
+      },
+    });
+
+    return res.json({
+      message: 'Usuário atualizado com sucesso',
+      data: usuario,
+    });
+  } catch (error) {
+    return tratarErro(res, error, 'atualizar');
+  }
+};
+
+// Excluir usuário
+export const deletar = async (req, res) => {
+  const id = obterId(req.params.id);
+
+  if (!id) {
+    return res.status(400).json({
+      error: 'ID de usuário inválido',
+    });
+  }
+
+  if (req.usuario.id !== id && req.usuario.papel !== 'ORGANIZADOR') {
+    return res.status(403).json({
+      error: 'Acesso negado',
+    });
+  }
+
+  try {
     await prisma.usuario.delete({
       where: { id },
     });
@@ -129,22 +219,6 @@ export const deletar = async (req, res) => {
       message: 'Usuário excluído com sucesso',
     });
   } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({
-        error: 'Usuário não encontrado',
-      });
-    }
-
-    if (error.code === 'P2003') {
-      return res.status(409).json({
-        error: 'Não é possível excluir este usuário porque existem registros vinculados à conta',
-      });
-    }
-
-    console.error('Erro ao excluir usuário:', error);
-
-    return res.status(500).json({
-      error: 'Erro interno ao excluir usuário',
-    });
+    return tratarErro(res, error, 'excluir');
   }
 };
