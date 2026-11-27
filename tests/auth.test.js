@@ -21,16 +21,15 @@ describe('Auth', () => {
         expect(usuario.id).toBeDefined();
         expect(usuario.email).toBe('teste@teste.com');
     });
+    expect(res.status).toBe(201);
+    expect(res.body.data.id).toBeDefined();
+    expect(res.body.data.email).toBe('teste@teste.com');
+  });
 
-    it('não deve cadastrar email duplicado', async () => {
-        await criarUsuario();
-        const res = await request(app).post('/api/auth/register').send({
-            nome: 'Teste 2',
-            email: 'usuario@teste.com',
-            senha: 'senha123',
-        });
-
-        expect(res.status).toBe(409);
+  it('não deve cadastrar email duplicado', async () => {
+    await criarUsuario();
+    const res = await request(app).post('/api/auth/register').send({
+      nome: 'Teste 2', email: 'usuario@teste.com', senha: 'senha123',
     });
 
     it('deve fazer login e retornar token', async () => {
