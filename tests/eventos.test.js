@@ -1,6 +1,13 @@
 import request from 'supertest';
 import app from '../src/app.js';
-import { limparBanco, criarUsuario, criarCategoria, criarLocal, criarEvento } from './setup.js';
+import {
+  limparBanco,
+  criarUsuario,
+  criarOrganizador,
+  criarCategoria,
+  criarLocal,
+  criarEvento,
+} from './setup.js';
 
 beforeEach(async () => { await limparBanco(); });
 
