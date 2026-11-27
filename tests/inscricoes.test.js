@@ -142,6 +142,130 @@ it('deve realizar check-in e impedir sua repetição', async () => {
 
   expect(checkinRepetido.status).toBe(400);
 });
+  it('deve permitir uma nova inscrição após o cancelamento', async () => {
+    const cat = await criarCategoria();
+    const loc = await criarLocal();
+    const org = await criarUsuario(true);
+    const evento = await prismaEvento(cat, loc, org, 1);
+
+    await criarUsuario();
+    const token = await fazerLogin(app, 'usuario@teste.com');
+
+    const primeiraInscricao = await request(app)
+      .post('/api/inscricoes')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ eventoId: evento.id });
+
+    expect(primeiraInscricao.status).toBe(201);
+
+    const cancelamento = await request(app)
+      .patch(`/api/inscricoes/${primeiraInscricao.body.data.id}/cancelar`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(cancelamento.status).toBe(200);
+
+    const reinscricao = await request(app)
+      .post('/api/inscricoes')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ eventoId: evento.id });
+
+    expect(reinscricao.status).toBe(201);
+    expect(reinscricao.body.data.status).toBe('CONFIRMADO');
+
+    const minhasInscricoes = await request(app)
+      .get('/api/inscricoes/minhas')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(minhasInscricoes.body.data).toHaveLength(1);
+    expect(minhasInscricoes.body.data[0].status).toBe('CONFIRMADO');
+  });
+
+  it('deve reativar uma inscrição cancelada ao promover alguém da lista de espera', async () => {
+    const cat = await criarCategoria();
+    const loc = await criarLocal();
+    const org = await criarUsuario(true);
+    const evento = await prismaEvento(cat, loc, org, 1);
+
+    await criarUsuario();
+    await criarUsuario(false, 'segundo@teste.com');
+
+    const tokenFila = await fazerLogin(app, 'usuario@teste.com');
+    const tokenOcupante = await fazerLogin(app, 'segundo@teste.com');
+
+    // O futuro integrante da fila já teve uma inscrição cancelada.
+    const inscricaoAnterior = await request(app)
+      .post('/api/inscricoes')
+      .set('Authorization', `Bearer ${tokenFila}`)
+      .send({ eventoId: evento.id });
+
+    expect(inscricaoAnterior.status).toBe(201);
+
+    const primeiroCancelamento = await request(app)
+      .patch(`/api/inscricoes/${inscricaoAnterior.body.data.id}/cancelar`)
+      .set('Authorization', `Bearer ${tokenFila}`);
+
+    expect(primeiroCancelamento.status).toBe(200);
+
+    // Outra pessoa ocupa a vaga.
+    const inscricaoOcupante = await request(app)
+      .post('/api/inscricoes')
+      .set('Authorization', `Bearer ${tokenOcupante}`)
+      .send({ eventoId: evento.id });
+
+    expect(inscricaoOcupante.status).toBe(201);
+
+    // A pessoa com inscrição antiga cancelada entra na lista de espera.
+    const entradaNaFila = await request(app)
+      .post('/api/inscricoes')
+      .set('Authorization', `Bearer ${tokenFila}`)
+      .send({ eventoId: evento.id });
+
+    expect(entradaNaFila.status).toBe(202);
+
+    // O cancelamento libera a vaga e promove a pessoa da fila.
+    const cancelamentoOcupante = await request(app)
+      .patch(`/api/inscricoes/${inscricaoOcupante.body.data.id}/cancelar`)
+      .set('Authorization', `Bearer ${tokenOcupante}`);
+
+    expect(cancelamentoOcupante.status).toBe(200);
+
+    const minhasInscricoes = await request(app)
+      .get('/api/inscricoes/minhas')
+      .set('Authorization', `Bearer ${tokenFila}`);
+
+    expect(minhasInscricoes.status).toBe(200);
+    expect(minhasInscricoes.body.data).toHaveLength(1);
+    expect(minhasInscricoes.body.data[0].status).toBe('CONFIRMADO');
+  });
+
+  it('não deve permitir cancelar a mesma inscrição duas vezes', async () => {
+    const cat = await criarCategoria();
+    const loc = await criarLocal();
+    const org = await criarUsuario(true);
+    const evento = await criarEvento(cat, loc, org);
+
+    await criarUsuario();
+    const token = await fazerLogin(app, 'usuario@teste.com');
+
+    const inscricao = await request(app)
+      .post('/api/inscricoes')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ eventoId: evento.id });
+
+    expect(inscricao.status).toBe(201);
+
+    const primeiroCancelamento = await request(app)
+      .patch(`/api/inscricoes/${inscricao.body.data.id}/cancelar`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(primeiroCancelamento.status).toBe(200);
+
+    const segundoCancelamento = await request(app)
+      .patch(`/api/inscricoes/${inscricao.body.data.id}/cancelar`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(segundoCancelamento.status).toBe(400);
+  });
 
 
 });
