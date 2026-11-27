@@ -6,67 +6,132 @@ const inscricaoSchema = z.object({
 });
 
 
+
 export const criar = async (req, res) => {
   try {
     const { eventoId } = inscricaoSchema.parse(req.body);
     const usuarioId = req.usuario.id;
 
-    const evento = await prisma.evento.findUnique({
-      where: { id: eventoId },
-    });
-
-    if (!evento) {
-      return res.status(404).json({ error: 'Evento não encontrado' });
-    }
-
-    if (evento.status !== 'ATIVO') {
-      return res.status(400).json({
-        error: 'Evento não está ativo',
+    const resultado = await prisma.$transaction(async (tx) => {
+      const evento = await tx.evento.findUnique({
+        where: { id: eventoId },
       });
-    }
 
-    if (new Date(evento.dataHora) <= new Date()) {
-      return res.status(400).json({
-        error: 'Evento já ocorreu',
-      });
-    }
+      if (!evento) {
+        return {
+          status: 404,
+          body: { error: 'Evento não encontrado' },
+        };
+      }
 
-    const existente = await prisma.inscricao.findUnique({
-      where: {
-        eventoId_usuarioId: {
-          eventoId,
-          usuarioId,
-        },
-      },
-    });
+      if (evento.status !== 'ATIVO') {
+        return {
+          status: 400,
+          body: { error: 'Evento não está ativo' },
+        };
+      }
 
-    if (existente) {
-      return res.status(409).json({
-        error: 'Você já está inscrito neste evento',
-      });
-    }
+      if (new Date(evento.dataHora) <= new Date()) {
+        return {
+          status: 400,
+          body: { error: 'Evento já ocorreu' },
+        };
+      }
 
-    if (evento.vagasDisponiveis <= 0) {
-      const existenteLista = await prisma.listaEspera.findUnique({
+      const existente = await tx.inscricao.findUnique({
         where: {
-          eventoId_usuarioId: {
-            eventoId,
-            usuarioId,
-          },
+          eventoId_usuarioId: { eventoId, usuarioId },
+        },
+      });
+
+      if (existente) {
+        return {
+          status: 409,
+          body: { error: 'Você já possui uma inscrição neste evento' },
+        };
+      }
+
+      const existenteLista = await tx.listaEspera.findUnique({
+        where: {
+          eventoId_usuarioId: { eventoId, usuarioId },
         },
       });
 
       if (existenteLista) {
-        return res.status(409).json({
-          error: 'Você já está na lista de espera deste evento',
-        });
+        return {
+          status: 409,
+          body: { error: 'Você já está na lista de espera deste evento' },
+        };
       }
 
-      const posicao = await prisma.listaEspera.count({
+      const vagaReservada = await tx.evento.updateMany({
+        where: {
+          id: eventoId,
+          status: 'ATIVO',
+          dataHora: { gt: new Date() },
+          vagasDisponiveis: { gt: 0 },
+        },
+        data: {
+          vagasDisponiveis: { decrement: 1 },
+        },
+      });
+
+      if (vagaReservada.count === 1) {
+        const inscricao = await tx.inscricao.create({
+          data: {
+            eventoId,
+            usuarioId,
+          },
+          include: {
+            evento: {
+              select: {
+                id: true,
+                titulo: true,
+                dataHora: true,
+              },
+            },
+          },
+        });
+
+        return {
+          status: 201,
+          body: {
+            message: 'Inscrição confirmada',
+            data: inscricao,
+          },
+        };
+      }
+
+      const eventoAtual = await tx.evento.findUnique({
+        where: { id: eventoId },
+      });
+
+      if (!eventoAtual) {
+        return {
+          status: 404,
+          body: { error: 'Evento não encontrado' },
+        };
+      }
+
+      if (eventoAtual.status !== 'ATIVO') {
+        return {
+          status: 400,
+          body: { error: 'Evento não está ativo' },
+        };
+      }
+
+      if (new Date(eventoAtual.dataHora) <= new Date()) {
+        return {
+          status: 400,
+          body: { error: 'Evento já ocorreu' },
+        };
+      }
+
+      const posicao = await tx.listaEspera.count({
         where: { eventoId },
       });
 
-      await prisma.listaEspera.create({
+      await tx.listaEspera.create({
         data: {
           eventoId,
           usuarioId,
@@ -74,40 +139,15 @@ export const criar = async (req, res) => {
         },
       });
 
-      return res.status(202).json({
-        message: 'Evento lotado. Você foi adicionado à lista de espera',
-      });
-    }
-
-    const inscricao = await prisma.inscricao.create({
-      data: {
-        eventoId,
-        usuarioId,
-      },
-      include: {
-        evento: {
-          select: {
-            id: true,
-            titulo: true,
-            dataHora: true,
-          },
+      return {
+        status: 202,
+        body: {
+          message: 'Evento lotado. Você foi adicionado à lista de espera',
         },
-      },
+      };
     });
 
-    await prisma.evento.update({
-      where: { id: eventoId },
-      data: {
-        vagasDisponiveis: {
-          decrement: 1,
-        },
-      },
-    });
-
-    return res.status(201).json({
-      message: 'Inscrição confirmada',
-      data: inscricao,
-    });
+    return res.status(resultado.status).json(resultado.body);
 
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -130,6 +170,7 @@ export const criar = async (req, res) => {
     });
   }
 };
+
 
 
 export const listarMinhas = async (req, res) => {
