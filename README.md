@@ -4,7 +4,12 @@ API REST completa para plataforma de eventos esportivos e comunitários, desenvo
 
 ## 📋 Sobre o Projeto
 
-Sistema que resolve a dor de organizadores que têm dificuldade em reunir participantes e reservar atividades esportivas. Permite criar eventos, gerenciar inscrições com controle de vagas, lista de espera, check-in e avaliações.
+Sistema que resolve a dificuldade de organizadores em reunir participantes e reservar atividades esportivas. Permite criar eventos, gerenciar inscrições com controle de vagas, lista de espera, check-in e avaliações.
+
+O sistema trabalha com dois tipos de usuários:
+
+- **ORGANIZADOR:** possui permissões administrativas para gerenciar eventos, usuários, categorias, locais, inscrições e avaliações.
+- **PARTICIPANTE:** pode consultar eventos, realizar inscrições, cancelar suas próprias inscrições e avaliar eventos após confirmar presença.
 
 ## 🛠️ Tecnologias
 
@@ -19,7 +24,7 @@ Sistema que resolve a dor de organizadores que têm dificuldade em reunir partic
 
 ## 📁 Estrutura
 
-```
+```text
 backend/
 ├── prisma/
 │   ├── schema.prisma          # DER com 7 entidades
@@ -46,11 +51,13 @@ backend/
 ## 🚀 Instalação Local
 
 ### Pré-requisitos
+
 - Node.js 18+
 - PostgreSQL
 - npm ou yarn
 
 ### 1. Clone e instale
+
 ```bash
 git clone <repositorio>
 cd backend
@@ -58,12 +65,14 @@ npm install
 ```
 
 ### 2. Configure o ambiente
+
 ```bash
 cp .env.example .env
 # Edite o .env com suas credenciais do PostgreSQL
 ```
 
 ### 3. Banco de dados
+
 ```bash
 # Gerar Prisma Client
 npx prisma generate
@@ -76,6 +85,7 @@ npx prisma db seed
 ```
 
 ### 4. Executar
+
 ```bash
 # Desenvolvimento
 npm run dev
@@ -85,15 +95,17 @@ npm start
 ```
 
 Servidor: `http://localhost:3001`
+
 Documentação: `http://localhost:3001/api-docs`
 
 ## 🔐 Credenciais de Demonstração (seed)
 
 | Usuário | Email | Senha | Papel |
 |---------|-------|-------|-------|
-| Admin | admin@esporte.com | senha123 | ADMIN |
 | Organizador | organizador@esporte.com | senha123 | ORGANIZADOR |
 | Participante | joao@esporte.com | senha123 | PARTICIPANTE |
+
+**Importante:** o cadastro público cria contas com o papel `PARTICIPANTE`. Contas de `ORGANIZADOR` são criadas por um processo controlado, como o seed.
 
 ## 🧪 Testes
 
@@ -107,60 +119,110 @@ npm run test:ci
 
 ## 📊 Endpoints Principais
 
-### Autenticação (público)
-- `POST /api/auth/register` - Cadastro
+Todas as rotas protegidas exigem autenticação JWT, exceto quando indicado como públicas.
+
+### Autenticação
+
+- `POST /api/auth/register` - Cadastro público de participante
 - `POST /api/auth/login` - Login (retorna JWT)
-- `GET /api/auth/me` - Perfil (protegido)
-- `PUT /api/auth/me` - Atualizar perfil
-- `PUT /api/auth/password` - Trocar senha
+- `GET /api/auth/me` - Consultar perfil do usuário autenticado
+- `PUT /api/auth/me` - Atualizar próprio perfil
+- `PUT /api/auth/password` - Alterar senha
 
-### Eventos (core)
-- `GET /api/eventos` - Listar com filtros (categoria, local, data, busca, paginação)
-- `GET /api/eventos/:id` - Detalhe do evento
-- `POST /api/eventos` - Criar (organizador/admin)
-- `PUT /api/eventos/:id` - Atualizar (organizador dono)
-- `DELETE /api/eventos/:id` - Excluir (organizador/admin)
-- `GET /api/eventos/minhas` - Meus eventos como organizador
+### Usuários
 
-### Inscrições (fluxo principal)
-- `POST /api/inscricoes` - Inscrever (controla vagas e lista de espera)
-- `GET /api/inscricoes/minhas` - Minhas inscrições
-- `GET /api/inscricoes/evento/:id` - Participantes do evento (organizador)
-- `PATCH /api/inscricoes/:id/cancelar` - Cancelar (libera vaga)
-- `PATCH /api/inscricoes/:id/checkin` - Check-in (organizador)
+- `GET /api/usuarios` - Listar usuários (organizador)
+- `GET /api/usuarios/:id` - Consultar usuário (próprio usuário ou organizador)
+- `PUT /api/usuarios/:id` - Atualizar usuário (próprio usuário ou organizador)
+- `DELETE /api/usuarios/:id` - Excluir usuário (próprio usuário ou organizador)
+
+### Eventos
+
+- `GET /api/eventos` - Listar eventos com filtros por categoria, local, data, busca e paginação
+- `GET /api/eventos/:id` - Consultar detalhes de um evento
+- `GET /api/eventos/minhas` - Listar eventos pelo painel do organizador
+- `POST /api/eventos` - Criar evento (organizador)
+- `PUT /api/eventos/:id` - Atualizar evento (organizador)
+- `DELETE /api/eventos/:id` - Excluir evento (organizador)
+
+### Categorias
+
+- `GET /api/categorias` - Listar categorias
+- `GET /api/categorias/:id` - Consultar categoria
+- `POST /api/categorias` - Criar categoria (organizador)
+- `PUT /api/categorias/:id` - Atualizar categoria (organizador)
+- `DELETE /api/categorias/:id` - Excluir categoria (organizador)
+
+### Locais
+
+- `GET /api/locais` - Listar locais
+- `GET /api/locais/:id` - Consultar local
+- `POST /api/locais` - Criar local (organizador)
+- `PUT /api/locais/:id` - Atualizar local (organizador)
+- `DELETE /api/locais/:id` - Excluir local (organizador)
+
+### Inscrições
+
+- `POST /api/inscricoes` - Realizar inscrição (participante autenticado)
+- `GET /api/inscricoes/minhas` - Consultar próprias inscrições
+- `GET /api/inscricoes/evento/:id` - Consultar participantes de um evento (organizador)
+- `PATCH /api/inscricoes/:id/cancelar` - Cancelar inscrição (titular ou organizador)
+- `PATCH /api/inscricoes/:id/checkin` - Realizar check-in (organizador)
 
 ### Avaliações
-- `POST /api/avaliacoes` - Avaliar evento (apenas se presente)
-- `GET /api/avaliacoes/evento/:id` - Avaliações do evento
+
+- `POST /api/avaliacoes` - Avaliar evento (participante com presença confirmada)
+- `GET /api/avaliacoes/evento/:id` - Consultar avaliações e média do evento
+- `GET /api/avaliacoes/:id` - Consultar avaliação específica
+- `PUT /api/avaliacoes/:id` - Atualizar avaliação (autor ou organizador)
+- `DELETE /api/avaliacoes/:id` - Excluir avaliação (autor ou organizador)
 
 ### Dashboard
-- `GET /api/dashboard/estatisticas` - Estatísticas gerais
-- `GET /api/dashboard/eventos-populares` - Eventos mais populares
+
+- `GET /api/dashboard/estatisticas` - Consultar estatísticas gerais do sistema (organizador)
+- `GET /api/dashboard/eventos-populares` - Consultar os cinco eventos mais populares (organizador)
 
 ## 📋 Regras de Negócio (RN)
 
 | ID | Regra |
 |----|-------|
-| RN01 | Evento com 0 vagas disponíveis não aceita inscrição (lista de espera) |
-| RN02 | Usuário não pode se inscrever duas vezes no mesmo evento |
-| RN03 | Apenas o organizador pode editar/excluir seu evento |
-| RN04 | Cancelamento libera vaga automaticamente |
-| RN05 | Apenas quem fez check-in pode avaliar |
-| RN06 | Nota de avaliação entre 1 e 5 |
-| RN07 | Evento não pode ter data no passado |
+| RN01 | Eventos ativos e futuros aceitam inscrições. |
+| RN02 | Quando não há vagas disponíveis, o participante é direcionado à lista de espera. |
+| RN03 | Um usuário não pode se inscrever duas vezes no mesmo evento. |
+| RN04 | O organizador possui permissões administrativas para gerenciar eventos, usuários, categorias e locais. |
+| RN05 | O cancelamento de uma inscrição libera a vaga ou promove a próxima pessoa da lista de espera. |
+| RN06 | Apenas participantes com check-in realizado podem avaliar um evento. |
+| RN07 | Cada participante pode avaliar um evento uma única vez, com nota entre 1 e 5. |
+| RN08 | O sistema não permite excluir eventos com inscrições confirmadas. |
+| RN09 | Eventos não podem ser criados ou atualizados com datas no passado. |
+| RN10 | Participantes só podem gerenciar suas próprias contas e inscrições, respeitando as permissões do organizador. |
 
 ## 📦 Deploy (Render)
 
-1. Conecte o repositório ao Render
-2. Configure variáveis de ambiente (DATABASE_URL, JWT_SECRET, etc.)
-3. Build Command: `npm install && npx prisma generate`
-4. Start Command: `npm start`
-5. Execute migrações: `npx prisma migrate deploy`
+1. Conecte o repositório ao Render.
+2. Configure as variáveis de ambiente (`DATABASE_URL`, `JWT_SECRET` etc.).
+3. Build Command:
+
+```bash
+npm install && npx prisma generate
+```
+
+4. Start Command:
+
+```bash
+npm start
+```
+
+5. Execute as migrações:
+
+```bash
+npx prisma migrate deploy
+```
 
 ## 📄 Documentação Adicional
 
-- `docs/API_DOCUMENTATION.md` - Detalhes da API para Insomnia/Postman
-- `docs/TEST_CASES.md` - Matriz de testes (10+ casos)
+- `docs/API_DOCUMENTATION.md` - Detalhes da API para Insomnia/Postman.
+- `docs/TEST_CASES.md` - Matriz de testes.
 
 ## 👥 Equipe
 

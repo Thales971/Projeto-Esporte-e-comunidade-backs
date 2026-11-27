@@ -8,8 +8,7 @@ datasource db {
 
 enum Role {
   ORGANIZADOR
-  PARTICIPANTE
-  ADMIN
+  PARTICIPANTE  
 }
 
 enum EventStatus {

@@ -3,12 +3,6 @@ import { prisma } from '../lib/services/prismaClient.js';
 
 export const estatisticas = async (req, res) => {
   try {
-    const isAdmin = req.usuario.papel === 'ADMIN';
-
-    const filtroEvento = isAdmin
-      ? {}
-      : { organizadorId: req.usuario.id };
-
     const [
       totalEventos,
       totalInscricoes,
@@ -16,39 +10,22 @@ export const estatisticas = async (req, res) => {
       totalCategorias,
       eventosPorCategoria,
     ] = await Promise.all([
-      prisma.evento.count({
-        where: filtroEvento,
-      }),
+      prisma.evento.count(),
 
-      prisma.inscricao.count({
-        where: {
-          evento: filtroEvento,
-        },
-      }),
+      prisma.inscricao.count(),
 
-      isAdmin
-        ? prisma.usuario.count()
-        : prisma.usuario.count({
-            where: {
-              inscricoes: {
-                some: {
-                  evento: filtroEvento,
-                },
-              },
-            },
-          }),
+      prisma.usuario.count(),
 
       prisma.categoria.count({
         where: {
           eventos: {
-            some: filtroEvento,
+            some: {},
           },
         },
       }),
 
       prisma.evento.groupBy({
         by: ['categoriaId'],
-        where: filtroEvento,
         _count: true,
       }),
     ]);
@@ -73,12 +50,7 @@ export const estatisticas = async (req, res) => {
 
 export const eventosPopulares = async (req, res) => {
   try {
-    const where = req.usuario.papel === 'ADMIN'
-      ? {}
-      : { organizadorId: req.usuario.id };
-
     const eventos = await prisma.evento.findMany({
-      where,
       orderBy: {
         inscricoes: {
           _count: 'desc',
@@ -95,7 +67,9 @@ export const eventosPopulares = async (req, res) => {
       },
     });
 
-    return res.json({ data: eventos });
+    return res.json({
+      data: eventos,
+    });
   } catch (error) {
     console.error('Erro nos eventos populares:', error);
 

@@ -60,7 +60,7 @@ describe("Eventos", () => {
     const org = await criarUsuario(true);
     const login = await request(app)
       .post("/api/auth/login")
-      .send({ email: "admin@teste.com", senha: "senha123" });
+      .send({ email: "organizador@teste.com", senha: "senha123" });
     const passado = new Date();
     passado.setDate(passado.getDate() - 1);
     const res = await request(app)

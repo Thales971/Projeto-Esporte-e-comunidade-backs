@@ -8,8 +8,7 @@ const registerSchema = z.object({
   email: z.string().email('E-mail inválido'),
   senha: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   telefone: z.string().optional(),
-  papel: z.enum(['ORGANIZADOR', 'PARTICIPANTE']).optional(),
-});
+}).strict();
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -30,7 +29,7 @@ export const register = async (req, res) => {
         email: data.email,
         senha: senhaHash,
         telefone: data.telefone,
-        papel: data.papel || 'PARTICIPANTE',
+        papel: 'PARTICIPANTE',
       },
       select: { id: true, nome: true, email: true, papel: true, criadoEm: true },
     });
