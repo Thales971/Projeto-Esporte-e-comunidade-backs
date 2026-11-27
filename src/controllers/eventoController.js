@@ -85,9 +85,16 @@ export const atualizar = async (req, res) => {
       return res.status(403).json({ error: 'Apenas o organizador pode editar este evento' });
     }
     const data = eventoSchema.parse(req.body);
+    const dataHora = new Date(data.dataHora);
+
+if (dataHora <= new Date()) {
+  return res.status(400).json({
+    error: 'Data do evento deve ser futura',
+  });
+}
     const eventoAtualizado = await prisma.evento.update({
       where: { id: Number(req.params.id) },
-      data: { ...data, dataHora: new Date(data.dataHora) },
+      data: { ...data, dataHora },
       include: { categoria: true, local: true },
     });
     return res.json({ message: 'Evento atualizado', data: eventoAtualizado });
@@ -117,14 +124,26 @@ export const deletar = async (req, res) => {
 
 export const meusEventos = async (req, res) => {
   const { page = 1, limit = 10 } = req.query;
+
+  const where = req.usuario.papel === 'ADMIN'
+    ? {}
+    : { organizadorId: req.usuario.id };
+
   const [eventos, total] = await Promise.all([
     prisma.evento.findMany({
-      where: { organizadorId: req.usuario.id },
+      where,
       skip: (Number(page) - 1) * Number(limit),
       take: Number(limit),
       orderBy: { dataHora: 'desc' },
     }),
-    prisma.evento.count({ where: { organizadorId: req.usuario.id } }),
+    prisma.evento.count({ where }),
   ]);
-  return res.json({ data: eventos, total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) });
+
+  return res.json({
+    data: eventos,
+    total,
+    page: Number(page),
+    limit: Number(limit),
+    totalPages: Math.ceil(total / Number(limit)),
+  });
 };
