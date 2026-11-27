@@ -9,6 +9,6 @@ router.post('/', authenticate, controller.criar);
 router.get('/minhas', authenticate, controller.listarMinhas);
 router.get('/evento/:id', authenticate, controller.listarPorEvento);
 router.patch('/:id/cancelar', authenticate, controller.cancelar);
-router.patch('/:id/checkin', authenticate, authorize('ORGANIZADOR', 'ADMIN'), controller.checkin);
+router.patch('/:id/checkin', authenticate, authorize('ORGANIZADOR'), controller.checkin);
 
 export default router;

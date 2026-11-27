@@ -34,7 +34,7 @@ export const buscarPorId = async (req, res) => {
   const { id } = req.params;
   const usuarioId = Number(id);
 
-  if (req.usuario.id !== usuarioId && req.usuario.papel !== 'ADMIN') {
+  if (req.usuario.id !== usuarioId && req.usuario.papel !== 'ORGANIZADOR') {
     return res.status(403).json({
       error: 'Acesso negado',
     });
@@ -67,7 +67,7 @@ export const atualizar = async (req, res) => {
   try {
     const { id } = req.params;
     const data = usuarioSchema.parse(req.body);
-    if (req.usuario.id !== Number(id) && req.usuario.papel !== 'ADMIN') {
+    if (req.usuario.id !== Number(id) && req.usuario.papel !== 'ORGANIZADOR') {
       return res.status(403).json({ error: 'Acesso negado' });
     }
     const usuario = await prisma.usuario.update({
@@ -115,7 +115,7 @@ export const deletar = async (req, res) => {
       });
     }
 
-    if (req.usuario.id !== id && req.usuario.papel !== 'ADMIN') {
+    if (req.usuario.id !== id && req.usuario.papel !== 'ORGANIZADOR') {
       return res.status(403).json({
         error: 'Acesso negado',
       });

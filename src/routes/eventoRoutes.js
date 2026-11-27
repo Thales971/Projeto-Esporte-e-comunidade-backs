@@ -8,11 +8,11 @@ const router = express.Router();
 
 router.get('/', controller.listar);
 
-router.get('/minhas', authenticate, authorize('ORGANIZADOR', 'ADMIN'), controller.meusEventos);
+router.get('/minhas', authenticate, authorize('ORGANIZADOR',), controller.meusEventos);
 
 router.get('/:id', controller.buscarPorId);
 
-router.post('/', authenticate, authorize('ORGANIZADOR', 'ADMIN'), controller.criar);
+router.post('/', authenticate, authorize('ORGANIZADOR'), controller.criar);
 router.put('/:id', authenticate, controller.atualizar);
 router.delete('/:id', authenticate, controller.deletar);
 
