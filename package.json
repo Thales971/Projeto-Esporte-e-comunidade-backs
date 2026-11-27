@@ -12,8 +12,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watchAll --runInBand",
-      "test:ci": "node --experimental-vm-modules node_modules/.bin/jest --ci --runInBand"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --watchAll",
+    "test:ci": "node --experimental-vm-modules node_modules/.bin/jest --ci"
   },
   "keywords": ["esporte", "comunidade", "eventos", "inscricoes", "senai", "desafio-tech"],
   "author": "Equipe Esporte e Comunidade",
