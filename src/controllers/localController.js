@@ -1,14 +1,14 @@
 import { prisma } from '../lib/services/prismaClient.js';
-import { zod } from 'zod';
+import { z } from 'zod';
 
-const localSchema = zod.object({
-  nome: zod.string().min(3),
-  endereco: zod.string().min(3),
-  cidade: zod.string().min(3),
-  cep: zod.string().min(5),
-  capacidade: zod.number().int().positive().optional(),
-  tipo: zod.string().default('Quadra'),
-  ativo: zod.boolean().default(true),
+const localSchema = z.object({
+  nome: z.string().min(3),
+  endereco: z.string().min(3),
+  cidade: z.string().min(3),
+  cep: z.string().min(5),
+  capacidade: z.number().int().positive().optional(),
+  tipo: z.string().default('Quadra'),
+  ativo: z.boolean().default(true),
 });
 
 export const listar = async (req, res) => {

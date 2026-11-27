@@ -1,6 +1,7 @@
 import express from 'express';
 import * as controller from '../controllers/authController.js';
 import { validate } from '../lib/middlewares/validate.js';
+import { authenticate } from '../lib/middlewares/auth.js';
 import { z } from 'zod';
 
 const router = express.Router();
@@ -19,8 +20,8 @@ const loginSchema = z.object({
 
 router.post('/register', validate(registerSchema), controller.register);
 router.post('/login', validate(loginSchema), controller.login);
-router.get('/me', controller.me);
-router.put('/me', controller.updateProfile);
-router.put('/password', controller.changePassword);
+router.get('/me', authenticate, controller.me);
+router.put('/me', authenticate, controller.updateProfile);
+router.put('/password', authenticate, controller.changePassword);
 
 export default router;

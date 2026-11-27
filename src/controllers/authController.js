@@ -8,7 +8,7 @@ const registerSchema = z.object({
   email: z.string().email('E-mail inválido'),
   senha: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   telefone: z.string().optional(),
-  papel: z.enum(['ORGANIZADOR', 'PARTICIPANTE', 'ADMIN']).optional(),
+  papel: z.enum(['ORGANIZADOR', 'PARTICIPANTE']).optional(),
 });
 
 const loginSchema = z.object({
@@ -78,19 +78,40 @@ export const me = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { nome, telefone, papel } = req.body;
-    if (req.usuario.id !== Number(id) && req.usuario.papel !== 'ADMIN') {
-      return res.status(403).json({ error: 'Acesso negado' });
-    }
+    const schema = z.object({
+      nome: z.string().min(3).optional(),
+      telefone: z.string().optional(),
+    }).strict();
+
+    const data = schema.parse(req.body);
+
     const usuario = await prisma.usuario.update({
-      where: { id: Number(id) },
-      data: { nome, telefone, papel },
-      select: { id: true, nome: true, email: true, papel: true, telefone: true },
+      where: { id: req.usuario.id },
+      data,
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        papel: true,
+        telefone: true,
+      },
     });
-    return res.json({ message: 'Perfil atualizado', data: usuario });
+
+    return res.json({
+      message: 'Perfil atualizado com sucesso',
+      data: usuario,
+    });
   } catch (error) {
-    return res.status(500).json({ error: 'Erro ao atualizar perfil' });
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: 'Dados inválidos',
+        detalhes: error.errors,
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Erro ao atualizar perfil',
+    });
   }
 };
 
