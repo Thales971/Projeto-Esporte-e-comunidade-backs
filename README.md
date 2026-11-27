@@ -52,15 +52,15 @@ backend/
 
 ### Pré-requisitos
 
-- Node.js 18+
+- Node.js 20.19+ (recomendado: Node.js 22.12+)
 - PostgreSQL
 - npm ou yarn
 
 ### 1. Clone e instale
 
 ```bash
-git clone <repositorio>
-cd backend
+git clone https://github.com/Thales971/Projeto-Esporte-e-comunidade-backs.git
+cd Projeto-Esporte-e-comunidade-backs
 npm install
 ```
 

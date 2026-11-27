@@ -8,7 +8,7 @@
 
 | Ferramenta | Como baixar |
 |------------|-------------|
-| **Node.js 18+** | [nodejs.org](https://nodejs.org/) |
+| **Node.js 20.19+ (recomendado: Node.js 22.12+)** | [nodejs.org](https://nodejs.org/) |
 | **PostgreSQL** | [postgresql.org](https://www.postgresql.org/download/) ou use Supabase/Railway |
 | **Git** | [git-scm.com](https://git-scm.com/) |
 
