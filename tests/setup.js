@@ -23,6 +23,22 @@ export async function criarUsuario(admin = false, email = admin ? 'admin@teste.c
   });
 }
 
+
+export async function criarOrganizador() {
+  const bcrypt = await import('bcryptjs');
+  const hash = await bcrypt.default.hash('senha123', 10);
+
+  return prisma.usuario.create({
+    data: {
+      nome: 'Organizador Teste',
+      email: 'organizador@teste.com',
+      senha: hash,
+      papel: 'ORGANIZADOR',
+    },
+  });
+}
+
+
 export async function criarCategoria() {
   return prisma.categoria.create({
     data: { nome: 'Futebol', descricao: 'Teste', cor: '#10B981', icone: 'futebol' },
