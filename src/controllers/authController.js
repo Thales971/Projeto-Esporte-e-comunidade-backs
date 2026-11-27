@@ -36,11 +36,18 @@ export const register = async (req, res) => {
     });
     return res.status(201).json({ message: 'Usuário cadastrado com sucesso', data: usuario });
   } catch (error) {
-    if (error.errors) {
-      return res.status(400).json({ error: 'Dados inválidos', detalhes: error.errors });
-    }
-    return res.status(500).json({ error: 'Erro ao cadastrar usuário' });
+  if (error instanceof z.ZodError) {
+    return res.status(400).json({
+      error: 'Dados inválidos',
+      detalhes: error.issues,
+    });
   }
+
+  console.error(error);
+  return res.status(500).json({
+    error: 'Erro interno do servidor',
+  });
+}
 };
 
 export const login = async (req, res) => {
@@ -65,11 +72,18 @@ export const login = async (req, res) => {
       usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel },
     });
   } catch (error) {
-    if (error.errors) {
-      return res.status(400).json({ error: 'Dados inválidos', detalhes: error.errors });
-    }
-    return res.status(500).json({ error: 'Erro ao fazer login' });
+  if (error instanceof z.ZodError) {
+    return res.status(400).json({
+      error: 'Dados inválidos',
+      detalhes: error.issues,
+    });
   }
+
+  console.error(error);
+  return res.status(500).json({
+    error: 'Erro interno do servidor',
+  });
+}
 };
 
 export const me = async (req, res) => {
@@ -105,7 +119,7 @@ export const updateProfile = async (req, res) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         error: 'Dados inválidos',
-        detalhes: error.errors,
+        detalhes: error.issues,
       });
     }
 
@@ -117,19 +131,56 @@ export const updateProfile = async (req, res) => {
 
 export const changePassword = async (req, res) => {
   try {
-    const { senhaAtual, novaSenha } = req.body;
-    const usuario = await prisma.usuario.findUnique({ where: { id: req.usuario.id } });
+    const schema = z.object({
+      senhaAtual: z.string().min(1, 'Informe a senha atual'),
+      novaSenha: z.string().min(6, 'A nova senha deve ter pelo menos 6 caracteres'),
+    }).strict();
+
+    const { senhaAtual, novaSenha } = schema.parse(req.body);
+
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: req.usuario.id },
+    });
+
     if (!usuario) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+      return res.status(404).json({
+        error: 'Usuário não encontrado',
+      });
     }
+
     const valida = await bcrypt.compare(senhaAtual, usuario.senha);
+
     if (!valida) {
-      return res.status(401).json({ error: 'Senha atual incorreta' });
+      return res.status(401).json({
+        error: 'Senha atual incorreta',
+      });
     }
-    const hash = await bcrypt.hash(novaSenha, Number(process.env.BCRYPT_SALT_ROUNDS) || 10);
-    await prisma.usuario.update({ where: { id: req.usuario.id }, data: { senha: hash } });
-    return res.json({ message: 'Senha alterada com sucesso' });
+
+    const hash = await bcrypt.hash(
+      novaSenha,
+      Number(process.env.BCRYPT_SALT_ROUNDS) || 10
+    );
+
+    await prisma.usuario.update({
+      where: { id: req.usuario.id },
+      data: { senha: hash },
+    });
+
+    return res.json({
+      message: 'Senha alterada com sucesso',
+    });
   } catch (error) {
-    return res.status(500).json({ error: 'Erro ao alterar senha' });
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: 'Dados inválidos',
+        detalhes: error.issues,
+      });
+    }
+
+    console.error(error);
+
+    return res.status(500).json({
+      error: 'Erro ao alterar senha',
+    });
   }
 };

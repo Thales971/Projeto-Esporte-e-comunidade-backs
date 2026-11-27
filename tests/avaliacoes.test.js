@@ -15,7 +15,7 @@ describe('Avaliações', () => {
     const loc = await criarLocal();
     const org = await criarUsuario(true);
     const evento = await criarEvento(cat, loc, org);
-    const user = await criarUsuario();
+    await criarUsuario();
     const token = await fazerLogin(app, 'usuario@teste.com');
     const res = await request(app)
       .post('/api/avaliacoes')
