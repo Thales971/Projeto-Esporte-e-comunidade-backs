@@ -170,12 +170,11 @@ Todas as rotas protegidas exigem autenticação JWT, exceto quando indicado como
 - `PATCH /api/inscricoes/:id/checkin` - Realizar check-in (organizador)
 
 ### Avaliações
-
-- `POST /api/avaliacoes` - Avaliar evento (participante com presença confirmada)
-- `GET /api/avaliacoes/evento/:id` - Consultar avaliações e média do evento
-- `GET /api/avaliacoes/:id` - Consultar avaliação específica
-- `PUT /api/avaliacoes/:id` - Atualizar avaliação (autor ou organizador)
-- `DELETE /api/avaliacoes/:id` - Excluir avaliação (autor ou organizador)
+- `POST /api/avaliacoes` - Avaliar evento (apenas se presente)
+- `GET /api/avaliacoes/evento/:id` - Avaliações do evento
+- `GET /api/avaliacoes/:id` - Consultar avaliação
+- `PUT /api/avaliacoes/:id` - Atualizar avaliação (autor/admin)
+- `DELETE /api/avaliacoes/:id` - Excluir avaliação (autor/admin)
 
 ### Dashboard
 
