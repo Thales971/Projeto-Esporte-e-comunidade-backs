@@ -81,7 +81,7 @@ export const atualizar = async (req, res) => {
   try {
     const evento = await prisma.evento.findUnique({ where: { id: Number(req.params.id) } });
     if (!evento) return res.status(404).json({ error: 'Evento não encontrado' });
-    if (evento.organizadorId !== req.usuario.id && req.usuario.papel !== 'ADMIN') {
+    if (evento.organizadorId !== req.usuario.id && req.usuario.papel !== 'ORGANIZADOR') {
       return res.status(403).json({ error: 'Apenas o organizador pode editar este evento' });
     }
     const data = eventoSchema.parse(req.body);
@@ -122,7 +122,7 @@ export const deletar = async (req, res) => {
   try {
     const evento = await prisma.evento.findUnique({ where: { id: Number(req.params.id) } });
     if (!evento) return res.status(404).json({ error: 'Evento não encontrado' });
-    if (evento.organizadorId !== req.usuario.id && req.usuario.papel !== 'ADMIN') {
+    if (evento.organizadorId !== req.usuario.id && req.usuario.papel !== 'ORGANIZADOR') {
       return res.status(403).json({ error: 'Apenas o organizador pode excluir este evento' });
     }
     const inscricoes = await prisma.inscricao.count({ where: { eventoId: Number(req.params.id), status: 'CONFIRMADO' } });
@@ -139,9 +139,7 @@ export const deletar = async (req, res) => {
 export const meusEventos = async (req, res) => {
   const { page = 1, limit = 10 } = req.query;
 
-  const where = req.usuario.papel === 'ADMIN'
-    ? {}
-    : { organizadorId: req.usuario.id };
+  const where = {};
 
   const [eventos, total] = await Promise.all([
     prisma.evento.findMany({

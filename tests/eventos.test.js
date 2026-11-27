@@ -118,4 +118,64 @@ describe("Eventos", () => {
     expect(res.status).toBe(200);
     expect(res.body.data[0].categoriaId).toBe(cat.id);
   });
+
+it("deve manter as vagas ocupadas ao atualizar o total de vagas", async () => {
+  const cat = await criarCategoria();
+  const loc = await criarLocal();
+  const org = await criarOrganizador();
+  const evento = await criarEvento(cat, loc, org);
+
+  await criarUsuario();
+
+  const loginOrg = await request(app)
+    .post("/api/auth/login")
+    .send({
+      email: "organizador@teste.com",
+      senha: "senha123",
+    });
+
+  const loginParticipante = await request(app)
+    .post("/api/auth/login")
+    .send({
+      email: "usuario@teste.com",
+      senha: "senha123",
+    });
+
+  const inscricao = await request(app)
+    .post("/api/inscricoes")
+    .set("Authorization", `Bearer ${loginParticipante.body.token}`)
+    .send({ eventoId: evento.id });
+
+  expect(inscricao.status).toBe(201);
+
+  const dadosEvento = {
+    titulo: evento.titulo,
+    descricao: evento.descricao,
+    dataHora: evento.dataHora.toISOString(),
+    duracaoMin: evento.duracaoMin,
+    vagasTotal: 15,
+    preco: 0,
+    categoriaId: evento.categoriaId,
+    localId: evento.localId,
+  };
+
+  const atualizacao = await request(app)
+    .put(`/api/eventos/${evento.id}`)
+    .set("Authorization", `Bearer ${loginOrg.body.token}`)
+    .send(dadosEvento);
+
+  expect(atualizacao.status).toBe(200);
+  expect(atualizacao.body.data.vagasDisponiveis).toBe(14);
+
+  const tentativaReducao = await request(app)
+    .put(`/api/eventos/${evento.id}`)
+    .set("Authorization", `Bearer ${loginOrg.body.token}`)
+    .send({
+      ...dadosEvento,
+      vagasTotal: 1,
+    });
+
+  expect(tentativaReducao.status).toBe(400);
+});
+
 });

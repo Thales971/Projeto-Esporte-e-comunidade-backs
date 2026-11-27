@@ -7,8 +7,8 @@ const router = express.Router();
 
 router.get('/', controller.listar);
 router.get('/:id', controller.buscarPorId);
-router.post('/', authenticate, authorize('ORGANIZADOR', 'ADMIN'), controller.criar);
-router.put('/:id', authenticate, authorize('ORGANIZADOR', 'ADMIN'), controller.atualizar);
-router.delete('/:id', authenticate, authorize('ADMIN'), controller.deletar);
+router.post('/', authenticate, authorize('ORGANIZADOR'), controller.criar);
+router.put('/:id', authenticate, authorize('ORGANIZADOR'), controller.atualizar);
+router.delete('/:id', authenticate, authorize('ORGANIZADOR'), controller.deletar);
 
 export default router;
