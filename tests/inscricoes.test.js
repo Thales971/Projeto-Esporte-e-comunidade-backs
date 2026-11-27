@@ -66,6 +66,50 @@ describe('Inscrições', () => {
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
   });
+
+
+it('deve promover a próxima pessoa da lista de espera quando uma inscrição for cancelada', async () => {
+  const cat = await criarCategoria();
+  const loc = await criarLocal();
+  const org = await criarUsuario(true);
+
+  const evento = await prismaEvento(cat, loc, org, 1);
+
+  await criarUsuario();
+  await criarUsuario(false, 'segundo@teste.com');
+
+  const token1 = await fazerLogin(app, 'usuario@teste.com');
+  const token2 = await fazerLogin(app, 'segundo@teste.com');
+
+  const primeiraInscricao = await request(app)
+    .post('/api/inscricoes')
+    .set('Authorization', `Bearer ${token1}`)
+    .send({ eventoId: evento.id });
+
+  expect(primeiraInscricao.status).toBe(201);
+
+  const espera = await request(app)
+    .post('/api/inscricoes')
+    .set('Authorization', `Bearer ${token2}`)
+    .send({ eventoId: evento.id });
+
+  expect(espera.status).toBe(202);
+
+  const cancelamento = await request(app)
+    .patch(`/api/inscricoes/${primeiraInscricao.body.data.id}/cancelar`)
+    .set('Authorization', `Bearer ${token1}`);
+
+  expect(cancelamento.status).toBe(200);
+
+  const minhasInscricoes = await request(app)
+    .get('/api/inscricoes/minhas')
+    .set('Authorization', `Bearer ${token2}`);
+
+  expect(minhasInscricoes.status).toBe(200);
+  expect(minhasInscricoes.body.data).toHaveLength(1);
+  expect(minhasInscricoes.body.data[0].status).toBe('CONFIRMADO');
+});
+
 });
 
 async function prismaEvento(cat, loc, org, vagas) {
