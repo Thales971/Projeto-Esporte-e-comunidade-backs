@@ -5,7 +5,12 @@ import { authorize } from '../lib/middlewares/role.js';
 
 const router = express.Router();
 
-router.post('/', authenticate, controller.criar);
+router.post(
+  '/',
+  authenticate,
+  authorize('PARTICIPANTE'),
+  controller.criar
+);
 router.get('/minhas', authenticate, controller.listarMinhas);
 router.get('/evento/:id', authenticate, controller.listarPorEvento);
 router.patch('/:id/cancelar', authenticate, controller.cancelar);

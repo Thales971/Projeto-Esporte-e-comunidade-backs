@@ -125,7 +125,14 @@ export const deletar = async (req, res) => {
     if (evento.organizadorId !== req.usuario.id && req.usuario.papel !== 'ORGANIZADOR') {
       return res.status(403).json({ error: 'Apenas o organizador pode excluir este evento' });
     }
-    const inscricoes = await prisma.inscricao.count({ where: { eventoId: Number(req.params.id), status: 'CONFIRMADO' } });
+    const inscricoes = await prisma.inscricao.count({
+      where: {
+        eventoId: Number(req.params.id),
+        status: {
+          in: ['CONFIRMADO', 'PRESENTE'],
+        },
+      },
+    });
     if (inscricoes > 0) {
       return res.status(409).json({ error: 'Não é possível excluir evento com inscrições confirmadas' });
     }
@@ -139,7 +146,9 @@ export const deletar = async (req, res) => {
 export const meusEventos = async (req, res) => {
   const { page = 1, limit = 10 } = req.query;
 
-  const where = {};
+  const where = {
+    organizadorId: req.usuario.id,
+  };
 
   const [eventos, total] = await Promise.all([
     prisma.evento.findMany({

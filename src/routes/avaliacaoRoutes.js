@@ -4,7 +4,12 @@ import { authenticate } from '../lib/middlewares/auth.js';
 
 const router = express.Router();
 
-router.post('/', authenticate, controller.criar);
+router.post(
+  '/',
+  authenticate,
+  authorize('PARTICIPANTE'),
+  controller.criar
+);
 router.get('/evento/:id', controller.listarPorEvento);
 
 export default router;
