@@ -42,7 +42,14 @@ export const register = async (req, res) => {
     });
   }
 
+  if (error.code === 'P2002') {
+    return res.status(409).json({
+      error: 'E-mail já cadastrado',
+    });
+  }
+
   console.error(error);
+
   return res.status(500).json({
     error: 'Erro interno do servidor',
   });

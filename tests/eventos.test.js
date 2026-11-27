@@ -13,6 +13,19 @@ beforeEach(async () => {
   await limparBanco();
 });
 
+async function fazerLogin(email) {
+  const login = await request(app)
+    .post('/api/auth/login')
+    .send({
+      email,
+      senha: 'senha123',
+    });
+
+  expect(login.status).toBe(200);
+
+  return login.body.token;
+}
+
 describe("Eventos", () => {
   it("deve listar eventos com paginação", async () => {
     const cat = await criarCategoria();
@@ -177,5 +190,134 @@ it("deve manter as vagas ocupadas ao atualizar o total de vagas", async () => {
 
   expect(tentativaReducao.status).toBe(400);
 });
+
+
+it('deve retornar 400 para ID de evento inválido', async () => {
+  const res = await request(app).get('/api/eventos/abc');
+
+  expect(res.status).toBe(400);
+});
+
+it('deve retornar 400 para paginação inválida', async () => {
+  const res = await request(app).get('/api/eventos?page=0');
+
+  expect(res.status).toBe(400);
+});
+
+it('deve retornar 404 ao criar evento com categoria inexistente', async () => {
+  const local = await criarLocal();
+  await criarUsuario(true);
+
+  const token = await fazerLogin('organizador@teste.com');
+
+  const futuro = new Date();
+  futuro.setDate(futuro.getDate() + 7);
+
+  const res = await request(app)
+    .post('/api/eventos')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      titulo: 'Evento Teste',
+      descricao: 'Descrição do evento',
+      dataHora: futuro.toISOString(),
+      duracaoMin: 60,
+      vagasTotal: 10,
+      preco: 0,
+      categoriaId: 99999,
+      localId: local.id,
+    });
+
+  expect(res.status).toBe(404);
+});
+
+it('deve retornar 404 ao criar evento com local inexistente', async () => {
+  const categoria = await criarCategoria();
+  await criarUsuario(true);
+
+  const token = await fazerLogin('organizador@teste.com');
+
+  const futuro = new Date();
+  futuro.setDate(futuro.getDate() + 7);
+
+  const res = await request(app)
+    .post('/api/eventos')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      titulo: 'Evento Teste',
+      descricao: 'Descrição do evento',
+      dataHora: futuro.toISOString(),
+      duracaoMin: 60,
+      vagasTotal: 10,
+      preco: 0,
+      categoriaId: categoria.id,
+      localId: 99999,
+    });
+
+  expect(res.status).toBe(404);
+});
+
+it('deve retornar 404 ao atualizar evento com categoria inexistente', async () => {
+  const categoria = await criarCategoria();
+  const local = await criarLocal();
+  const organizador = await criarUsuario(true);
+
+  const evento = await criarEvento(categoria, local, organizador);
+  const token = await fazerLogin('organizador@teste.com');
+
+  const futuro = new Date();
+  futuro.setDate(futuro.getDate() + 7);
+
+  const res = await request(app)
+    .put(`/api/eventos/${evento.id}`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      titulo: 'Evento Atualizado',
+      descricao: 'Descrição atualizada',
+      dataHora: futuro.toISOString(),
+      duracaoMin: 60,
+      vagasTotal: 10,
+      preco: 0,
+      categoriaId: 99999,
+      localId: local.id,
+    });
+
+  expect(res.status).toBe(404);
+});
+
+it('não deve excluir evento com participante presente', async () => {
+  const categoria = await criarCategoria();
+  const local = await criarLocal();
+  const organizador = await criarUsuario(true);
+
+  const evento = await criarEvento(categoria, local, organizador);
+
+  await criarUsuario(false, 'presente@teste.com');
+
+  const tokenOrganizador = await fazerLogin('organizador@teste.com');
+  const tokenParticipante = await fazerLogin('presente@teste.com');
+
+  const inscricao = await request(app)
+    .post('/api/inscricoes')
+    .set('Authorization', `Bearer ${tokenParticipante}`)
+    .send({
+      eventoId: evento.id,
+    });
+
+  expect(inscricao.status).toBe(201);
+
+  const checkin = await request(app)
+    .patch(`/api/inscricoes/${inscricao.body.data.id}/checkin`)
+    .set('Authorization', `Bearer ${tokenOrganizador}`);
+
+  expect(checkin.status).toBe(200);
+  expect(checkin.body.data.status).toBe('PRESENTE');
+
+  const exclusao = await request(app)
+    .delete(`/api/eventos/${evento.id}`)
+    .set('Authorization', `Bearer ${tokenOrganizador}`);
+
+  expect(exclusao.status).toBe(409);
+});
+
 
 });

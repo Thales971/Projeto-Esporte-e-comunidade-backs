@@ -1,6 +1,7 @@
 import express from 'express';
 import * as controller from '../controllers/avaliacaoController.js';
 import { authenticate } from '../lib/middlewares/auth.js';
+import { authorize } from '../lib/middlewares/role.js';
 
 const router = express.Router();
 

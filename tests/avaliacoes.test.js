@@ -131,4 +131,133 @@ describe('Avaliações', () => {
       .send(body);
     expect(duplicada.status).toBe(409);
   });
+
+it('não deve permitir que organizador crie avaliação', async () => {
+  const categoria = await criarCategoria();
+  const local = await criarLocal();
+  const organizador = await criarUsuario(true);
+  const evento = await criarEvento(categoria, local, organizador);
+
+  const token = await fazerLogin(app, 'organizador@teste.com');
+
+  const res = await request(app)
+    .post('/api/avaliacoes')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      eventoId: evento.id,
+      nota: 5,
+    });
+
+  expect(res.status).toBe(403);
+});
+
+it('deve retornar 404 ao avaliar evento inexistente', async () => {
+  await criarUsuario();
+
+  const token = await fazerLogin(app);
+
+  const res = await request(app)
+    .post('/api/avaliacoes')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      eventoId: 99999,
+      nota: 5,
+    });
+
+  expect(res.status).toBe(404);
+});
+
+it('deve retornar 400 para nota inválida', async () => {
+  const { evento, token } = await prepararAvaliacao();
+
+  const res = await request(app)
+    .post('/api/avaliacoes')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      eventoId: evento.id,
+      nota: 6,
+    });
+
+  expect(res.status).toBe(400);
+});
+
+it('deve retornar 400 para ID inválido na listagem de avaliações', async () => {
+  const res = await request(app)
+    .get('/api/avaliacoes/evento/abc');
+
+  expect(res.status).toBe(400);
+});
+
+it('deve retornar 404 ao listar avaliações de evento inexistente', async () => {
+  const res = await request(app)
+    .get('/api/avaliacoes/evento/99999');
+
+  expect(res.status).toBe(404);
+});
+
+it('deve permitir que organizador atualize avaliação de participante', async () => {
+  const { evento, token } = await prepararAvaliacao();
+
+  const criada = await request(app)
+    .post('/api/avaliacoes')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      eventoId: evento.id,
+      nota: 5,
+    });
+
+  expect(criada.status).toBe(201);
+
+  const tokenOrganizador = await fazerLogin(
+    app,
+    'organizador@teste.com'
+  );
+
+  const res = await request(app)
+    .put(`/api/avaliacoes/${criada.body.data.id}`)
+    .set('Authorization', `Bearer ${tokenOrganizador}`)
+    .send({
+      nota: 4,
+      comentario: 'Avaliação revisada',
+    });
+
+  expect(res.status).toBe(200);
+  expect(res.body.data.nota).toBe(4);
+});
+
+it('deve permitir que organizador exclua avaliação de participante', async () => {
+  const { evento, token } = await prepararAvaliacao();
+
+  const criada = await request(app)
+    .post('/api/avaliacoes')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      eventoId: evento.id,
+      nota: 5,
+    });
+
+  expect(criada.status).toBe(201);
+
+  const tokenOrganizador = await fazerLogin(
+    app,
+    'organizador@teste.com'
+  );
+
+  const res = await request(app)
+    .delete(`/api/avaliacoes/${criada.body.data.id}`)
+    .set('Authorization', `Bearer ${tokenOrganizador}`);
+
+  expect(res.status).toBe(200);
+});
+
+it('deve retornar 400 para ID inválido ao excluir avaliação', async () => {
+  const { token } = await prepararAvaliacao();
+
+  const res = await request(app)
+    .delete('/api/avaliacoes/abc')
+    .set('Authorization', `Bearer ${token}`);
+
+  expect(res.status).toBe(400);
+});
+
 });
